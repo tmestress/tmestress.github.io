@@ -1,0 +1,93 @@
+---
+title: "CRISPR screens for TME stress tolerance"
+output:
+  html_document:
+    self_contained: no
+---
+```{css, echo=FALSE}
+h1 {
+  text-align: center;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message=FALSE,warning=FALSE)
+```
+
+```{r init, include=FALSE}
+
+# setwd("gRNAtoGene/Analysis/HYdev_jan2021/interactive_onlineplot/for_dev_branch_rmd")
+# location of RMD file is assumed to be the working directory
+# clear knitr cache before re-knitting
+library(magrittr)
+library(ggrepel)
+library(tidyverse)
+library(plotly)
+
+```
+
+<center> <h4>Hover over <span style="color:red">points with FDR<0.05</span> to see which gene knockouts were significantly selected in the screens!</h4> </center>
+
+```{r plot,fig.align='center',fig.height=8,fig.width=9}
+
+volcano_plotly_data_subset <-read.csv("../volcano_plotly_data_subset.csv")
+
+volcano_allscreens_plot <-
+  ggplot(volcano_plotly_data_subset %>% arrange(label), 
+         aes(x=median_logFC,y=-log10(FDR),colour=label,text=description)) +
+  geom_point(alpha=0.5) + facet_grid(transduction_label~stressor_label) + #cannot have labeller, plotly cannot recognise
+  geom_vline(xintercept = 0, linetype="dashed", colour="gray",size=0.25) +
+  geom_hline(yintercept = -log10(0.05), linetype="dashed", colour="gray",size=0.25) +
+  # ggtitle("Screens for TME stress tolerance\n") +
+  scale_x_continuous(limits = c(-4,4)) + #(is median logfc, NOT log median fc)
+  scale_y_continuous(breaks=seq(0,4,1),labels=10^-seq(0,4,1),limits = c(NA,4.6)) +
+  scale_color_manual(values=c("azure3","red3"))+ 
+  #box is label, point is data point itself
+  labs(x="",y="") +
+  # labs(x="Median log fold-change",y="FDR") + #expression(paste(log[2]," median fold-change"))
+  geom_text(x=-3.8, y=-log10(0.035), size=rel(3), colour="black",label="0.05", show.legend = F) +
+  theme_bw() + theme(strip.background = element_rect(fill="lightskyblue1"),
+                     legend.position = "none",strip.text.x = element_text(size=rel(2),face="bold"),
+                     strip.text.y = element_text(size=rel(1.5)),
+                     # axis.title.x = element_text(margin = margin(t = 4)),
+                     # axis.title.y = element_text(margin = margin(l = -4)),
+                     plot.title = element_text(size = rel(2)),
+                     # plot.margin = unit(c(1,2,1,2), "pt"),
+                     panel.border = element_rect(fill=NA,linetype = "solid", colour = "black", size=0.5),
+                     panel.spacing = unit(0.25,"lines"),
+                     panel.grid.major = element_blank(),
+                     panel.grid.minor = element_blank())
+
+
+# taken from plot_ly arguments
+# style(hoverlabel=list(bgcolor = "#D16BCC",bordercolor = "black")) didnt work
+# already autosizes on its own by default
+# layout(xaxis = list(fixedrange = TRUE), yaxis = list(fixedrange = TRUE)) worked but not in all facets
+# config(modeBarButtonsToRemove = c('zoom', 'select', 'zoomIn', 'zoomOut', 'resetScale'), displaylogo = FALSE) didnt work
+# yaxis=list(automargin=T) doesnt work
+# margin doesnt work for any method so just add \n
+
+volcano_allscreens_plot_withTooltip <-
+  plotly::ggplotly(volcano_allscreens_plot,tooltip = "text") %>% 
+  #taken from plot_ly arguments 
+  style(hoverinfo = "skip", traces = 1) %>% #dont show info for fdr>0.05
+  style(text = text, traces = 2) 
+
+config(volcano_allscreens_plot_withTooltip, scrollZoom = TRUE,displayModeBar = TRUE) %>%
+  layout(margin=list(l = 30,r = 30,b = 10,t = 40,pad = 4),
+         yaxis = list(scaleratio = 1.5,title=list(text="FDR",standoff=25),
+                      ticks="outside", tickwidth=1, tickcolor='black', ticklen=6, col=1),
+         yaxis2 = list(scaleratio = 1.5,title=list(text="FDR",standoff=25),
+                       ticks="outside", tickwidth=1, tickcolor='black', ticklen=6, col=1),
+         xaxis=list(ticks="outside", tickwidth=1, tickcolor='black', ticklen=6),
+         xaxis2=list(title=list(text="Median log fold-change"),
+                     ticks="outside", tickwidth=1, tickcolor='black', ticklen=6),
+         xaxis3=list(ticks="outside", tickwidth=1, tickcolor='black', ticklen=6))
+
+# topmost y-axis and left-most x-axis are simply x/yaxis ie. 1, the rest are numbered 2,3 etc
+#cant get axis ticks touching the axes but ...
+
+# plotly::as_widget(volcano_allscreens_plot_withTooltip)
+
+```
+
